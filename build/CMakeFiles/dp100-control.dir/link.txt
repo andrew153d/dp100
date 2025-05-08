@@ -1,0 +1,1 @@
+/usr/bin/c++ "CMakeFiles/dp100-control.dir/src/dp100.cpp.o" "CMakeFiles/dp100-control.dir/src/main.cpp.o" "CMakeFiles/dp100-control.dir/src/utils/crc16.cpp.o" -o dp100-control  -lhidapi-libusb 
