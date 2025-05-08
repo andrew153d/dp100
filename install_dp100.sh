@@ -12,7 +12,7 @@ INSTALL_DIR="/usr/local/bin"
 # Step 2: Clone the repository
 TEMP_DIR=$(mktemp -d)
 echo "Cloning the repository into $TEMP_DIR..."
-git clone $REPO_URL $TEMP_DIR
+git clone $REPO_URL $TEMP_DIR/dp100
 
 # Step 1: Install the rules file
 if [ -f "$TEMP_DIR/dp100/$RULES_FILE" ]; then
