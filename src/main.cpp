@@ -17,7 +17,8 @@ int main(int argc, char *argv[])
     DP100 dp100;
 
     if (argc < 2)
-    {
+    {   
+        std::cout << "Argument count: " << argc << "\n";
         printUsage();
         return 1;
     }
@@ -36,19 +37,24 @@ int main(int argc, char *argv[])
     }
 
     std::string command = argv[1];
-
-    if (command == "--v" && argc == 4)
+    // std::cout << "Command: " << command << "\n";
+    // std::cout << "Number of arguments (argc): " << argc << "\n";
+    if (command == "--v" && argc == 5)
+    {
+        double voltage = std::stod(argv[2]);
+        double current = std::stod(argv[4]);
+        dp100.setVoltage(voltage);
+        dp100.setCurrent(current);
+        std::cout << "Voltage set to " << voltage << " V and current set to " << current << " A.\n";
+    }
+    else if (command == "--enable" && argc == 4)
     {
         double voltage = std::stod(argv[2]);
         double current = std::stod(argv[3]);
         dp100.setVoltage(voltage);
         dp100.setCurrent(current);
-        std::cout << "Voltage set to " << voltage << " V and current set to " << current << " A.\n";
-    }
-    else if (command == "--enable")
-    {
         dp100.enable();
-        std::cout << "Power supply enabled.\n";
+        std::cout << "Power supply enabled with voltage set to " << voltage << " V and current set to " << current << " A.\n";
     }
     else if (command == "--disable")
     {

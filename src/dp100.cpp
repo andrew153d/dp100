@@ -2,50 +2,157 @@
 #include <iostream>
 #include <hidapi/hidapi.h>
 #include <cstring>
+#include <thread>
 
-DP100::DP100() : device(nullptr) {
+DP100::DP100() : device(nullptr)
+{
+    currentCurrent = 0;
+    currentVoltage = 0;
+    isEnabled = false;
 }
 
-DP100::~DP100() {
+DP100::~DP100()
+{
     disconnect();
 }
 
-bool DP100::connect() {
+bool DP100::connect()
+{
     device = hid_open(VID, PID, nullptr);
+    if(device)
+    {
+        //getStatus();
+    }
     return device != nullptr;
 }
 
-void DP100::disconnect() {
-    if (device) {
+void DP100::disconnect()
+{
+    if (device)
+    {
         hid_close(device);
         device = nullptr;
     }
 }
 
-void DP100::setVoltage(double voltage) {
-    uint8_t command[8] = {0x20, static_cast<uint8_t>(voltage * 1000) & 0xFF, (static_cast<uint8_t>(voltage * 1000) >> 8) & 0xFF};
-    sendCommand(command, sizeof(command));
+void DP100::setVoltage(double voltage)
+{
+    currentVoltage = voltage * 1000; // Convert to mV
+    auto command = generateFrame(OP_BASICSET, generateSet(isEnabled, currentVoltage, currentCurrent));
+    hid_write(device, command.data(), command.size());
 }
 
-void DP100::setCurrent(double current) {
-    uint8_t command[8] = {0x21, static_cast<uint8_t>(current * 1000) & 0xFF, (static_cast<uint8_t>(current * 1000) >> 8) & 0xFF};
-    sendCommand(command, sizeof(command));
+void DP100::setCurrent(double current)
+{
+    currentCurrent = current * 1000; // Convert to mA
+    auto command = generateFrame(OP_BASICSET, generateSet(isEnabled, currentVoltage, currentCurrent));
+    hid_write(device, command.data(), command.size());
 }
 
-void DP100::enable() {
-    uint8_t command[1] = {0x80};
-    sendCommand(command, sizeof(command));
+void DP100::enable()
+{
+    isEnabled = true;
+    auto command = generateFrame(OP_BASICSET, generateSet(isEnabled, currentVoltage, currentCurrent));
+    hid_write(device, command.data(), command.size());
 }
 
-void DP100::disable() {
-    uint8_t command[1] = {0x00};
-    sendCommand(command, sizeof(command));
+void DP100::disable()
+{
+    isEnabled = false;
+    auto command = generateFrame(OP_BASICSET, generateSet(isEnabled, currentVoltage, currentCurrent));
+    hid_write(device, command.data(), command.size());
 }
 
-void DP100::getStatus() {
-    uint8_t command[1] = {0x40};
-    sendCommand(command, sizeof(command));
-    readResponse();
+void DP100::readStatus()
+{
+    int status_read = 0;
+    auto msg = generateFrame(OP_DEVICEINFO);
+    hid_write(device, msg.data(), msg.size());
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::vector<uint8_t> response(64);
+    int res = hid_read(device, response.data(), response.size());
+    if (res > 0)
+    {
+        status_read ++;
+        checkFrame(response);
+    }
+    else
+    {
+        std::cerr << "Failed to read response from device." << std::endl;
+        exit(0);
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    msg = generateFrame(OP_BASICINFO);
+    hid_write(device, msg.data(), msg.size());
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    res = hid_read(device, response.data(), response.size());
+    if (res > 0)
+    {
+        status_read++;
+        checkFrame(response);
+    }
+    else
+    {
+        std::cerr << "Failed to read response from device." << std::endl;
+        exit(0);
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    msg = generateFrame(OP_BASICSET, std::vector<uint8_t>{SET_ACT});
+    hid_write(device, msg.data(), msg.size());
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    res = hid_read(device, response.data(), response.size());
+    if (res > 0)
+    {
+        status_read++;
+        checkFrame(response);
+    }
+    else
+    {
+        std::cerr << "Failed to read response from device." << std::endl;
+        exit(0);
+    }
+
+    if(status_read!=3)
+    {
+        printf("Failed to read status");
+        exit(0);
+    }
+}
+
+void DP100::getStatus()
+{
+    readStatus();
+    printf("Vin: %u\n", vin);
+    printf("Vout: %u\n", vout);
+    printf("Iout: %u\n", iout);
+    printf("Vo_max: %u\n", vo_max);
+    printf("Temp1: %u\n", temp1);
+    printf("Temp2: %u\n", temp2);
+    printf("DC 5V: %u\n", dc_5v);
+    printf("Output Mode: %u\n", out_mode);
+    printf("Work State: %u\n", work_st);
+    printf("Device Type: %s\n", dev_type.c_str());
+    printf("Hardware Version: %u\n", hdw_ver);
+    printf("Application Version: %u\n", app_ver);
+    printf("Bootloader Version: %u\n", boot_ver);
+    printf("Run Area: %u\n", run_area);
+    printf("Device Serial Number: ");
+    for (auto byte : dev_sn)
+    {
+        printf("%02X ", byte);
+    }
+    printf("\n");
+    printf("Manufacture Date: %u-%02u-%02u\n", year, month, day);
+    printf("Block Level: %u\n", blk_lev);
+    printf("OPP: %u\n", opp);
+    printf("OPT: %u\n", opt);
+    printf("Voltage Level: %u\n", vol_lev);
+    printf("Index: %u\n", index);
+    printf("State: %u\n", state);
+    printf("Voltage Set: %u\n", vo_set);
+    printf("Current Set: %u\n", io_set);
+    printf("Overvoltage Set: %u\n", ovp_set);
+    printf("Overcurrent Set: %u\n", ocp_set);
 }
 
 std::vector<uint8_t> DP100::generateFrame(uint8_t opCode, std::vector<uint8_t> data)
@@ -64,7 +171,7 @@ std::vector<uint8_t> DP100::generateFrame(uint8_t opCode, std::vector<uint8_t> d
     return frame;
 }
 
-std::vector<uint8_t> DP100::generateSet(bool output=false, uint16_t voltage_set =0, uint16_t current_set=0, uint16_t overvoltage = 30500, uint16_t overcurrent = 30500)
+std::vector<uint8_t> DP100::generateSet(bool output, uint16_t voltage_set, uint16_t current_set, uint16_t overvoltage, uint16_t overcurrent)
 {
     std::vector<uint8_t> setData;
     setData.push_back(SET_MODIFY);
@@ -80,35 +187,116 @@ std::vector<uint8_t> DP100::generateSet(bool output=false, uint16_t voltage_set 
     return setData;
 }
 
-void DP100::sendCommand(uint8_t* command, size_t length) {
-    if (device) {
+void DP100::sendCommand(uint8_t *command, size_t length)
+{
+    if (device)
+    {
         printf("Sending command: ");
-        for (size_t i = 0; i < length; i++) {
+        for (size_t i = 0; i < length; i++)
+        {
             printf("%02X ", command[i]);
         }
         printf("\n");
         hid_write(device, command, length);
-    }else {
+    }
+    else
+    {
         std::cerr << "Device not connected.\n";
     }
 }
 
-void DP100::readResponse() {
+void DP100::readResponse()
+{
     uint8_t response[64];
     int res = hid_read(device, response, sizeof(response));
-    if (res > 0) {
+    if (res > 0)
+    {
         // Process response
     }
 }
 
-uint16_t DP100::crc16(uint8_t* data, size_t length) {
+void DP100::checkFrame(const std::vector<uint8_t> &data)
+{
+    if (data[0] == DR_D2H)
+    {
+        uint8_t op = data[1];
+        uint8_t data_len = data[3];
+        if (crc16(const_cast<uint8_t *>(data.data()), 4 + data_len + 2) == 0)
+        { // correct if return 0
+            std::vector<uint8_t> raw_data(data.begin() + 4, data.begin() + 4 + data_len);
+            // for (size_t i = 0; i < data.size(); ++i) {
+            //     printf("%02X ", data[i]);
+            // }
+            // printf("\n");
+            if (op == OP_BASICINFO)
+            {
+                vin = (raw_data[1] << 8) | raw_data[0];
+                vout = (raw_data[3] << 8) | raw_data[2];
+                iout = (raw_data[5] << 8) | raw_data[4];
+                vo_max = (raw_data[7] << 8) | raw_data[6];
+                temp1 = (raw_data[9] << 8) | raw_data[8];
+                temp2 = (raw_data[11] << 8) | raw_data[10];
+                dc_5v = (raw_data[13] << 8) | raw_data[12];
+                out_mode = raw_data[14];
+                work_st = raw_data[15];
+            }
+            else if (op == OP_DEVICEINFO)
+            {
+                dev_type = std::string(reinterpret_cast<const char *>(&raw_data[0]), 15);
+                hdw_ver = (raw_data[17] << 8) | raw_data[16];
+                app_ver = (raw_data[19] << 8) | raw_data[18];
+                boot_ver = (raw_data[21] << 8) | raw_data[20];
+                run_area = (raw_data[23] << 8) | raw_data[22];
+                dev_sn = std::vector<uint8_t>(raw_data.begin() + 24, raw_data.begin() + 35);
+                year = (raw_data[37] << 8) | raw_data[36];
+                month = raw_data[38];
+                day = raw_data[39];
+            }
+            else if (op == OP_SYSTEMINFO)
+            {
+                blk_lev = raw_data[0];
+                opp = (raw_data[2] << 8) | raw_data[1];
+                opt = (raw_data[4] << 8) | raw_data[3];
+                vol_lev = raw_data[5];
+            }
+            else if (op == OP_BASICSET)
+            {
+                index = raw_data[0];
+                state = raw_data[1];
+                isEnabled = (state == 1);
+                vo_set = (raw_data[3] << 8) | raw_data[2];
+                currentVoltage = vo_set;
+                io_set = (raw_data[5] << 8) | raw_data[4];
+                currentCurrent = io_set;
+                ovp_set = (raw_data[7] << 8) | raw_data[6];
+                ocp_set = (raw_data[9] << 8) | raw_data[8];
+            }
+            else
+            {
+                std::cerr << "Unknown operation code: " << static_cast<int>(op) << std::endl;
+            }
+        }
+        else
+        {
+            std::cerr << "CRC ERROR" << std::endl;
+        }
+    }
+}
+
+uint16_t DP100::crc16(uint8_t *data, size_t length)
+{
     uint16_t crc = 0xFFFF;
-    for (size_t i = 0; i < length; i++) {
+    for (size_t i = 0; i < length; i++)
+    {
         crc ^= data[i];
-        for (int j = 0; j < 8; j++) {
-            if (crc & 1) {
+        for (int j = 0; j < 8; j++)
+        {
+            if (crc & 1)
+            {
                 crc = (crc >> 1) ^ 0xA001;
-            } else {
+            }
+            else
+            {
                 crc >>= 1;
             }
         }
