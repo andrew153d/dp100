@@ -9,6 +9,15 @@ REPO_URL="https://github.com/andrew153d/dp100.git"  # Replace with the actual re
 BUILD_DIR="build"
 INSTALL_DIR="/usr/local/bin"
 
+# Step 0: Install required dependencies
+if ! pkg-config --exists hidapi-libusb; then
+    echo "Installing hidapi-libusb..."
+    sudo apt-get update
+    sudo apt-get install -y libhidapi-libusb0 libhidapi-dev
+else
+    echo "hidapi-libusb is already installed."
+fi
+
 # Step 2: Clone the repository
 TEMP_DIR=$(mktemp -d)
 echo "Cloning the repository into $TEMP_DIR..."

@@ -17,8 +17,7 @@ int main(int argc, char *argv[])
     DP100 dp100;
 
     if (argc < 2)
-    {   
-        std::cout << "Argument count: " << argc << "\n";
+    {
         printUsage();
         return 1;
     }
@@ -37,8 +36,6 @@ int main(int argc, char *argv[])
     }
 
     std::string command = argv[1];
-    // std::cout << "Command: " << command << "\n";
-    // std::cout << "Number of arguments (argc): " << argc << "\n";
     if (command == "--v" && argc == 5)
     {
         double voltage = std::stod(argv[2]);
