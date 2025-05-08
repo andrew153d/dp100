@@ -1,0 +1,44 @@
+# Compiled object files, libraries, executables
+*.o
+*.a
+*.so
+*.exe
+
+# CMake build directory
+/build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Code::Blocks project files
+*.layout
+*.depend
+*.cbp
+*.workspace
+
+# Qt Creator project files
+*.pro.user
+*.qmake.stash
+*.qmake.cache
+
+# Visual Studio Code settings
+.vscode/
+
+# Backup files
+*~
+*.bak
+*.swp
+*.tmp
+
+# Debug files
+*.dSYM/
+*.core
+*.stackdump
+
+# Logs
+*.log
+
+# Hidden system files
+.DS_Store
+Thumbs.db
