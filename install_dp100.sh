@@ -15,13 +15,13 @@ echo "Cloning the repository into $TEMP_DIR..."
 git clone $REPO_URL $TEMP_DIR
 
 # Step 1: Install the rules file
-if [ -f "dp100/$RULES_FILE" ]; then
+if [ -f "$TEMP_DIR/dp100/$RULES_FILE" ]; then
     echo "Installing udev rules..."
-    sudo cp dp100/$RULES_FILE /etc/udev/rules.d/
+    sudo cp $TEMP_DIR/dp100/$RULES_FILE /etc/udev/rules.d/
     sudo udevadm control --reload-rules
     sudo udevadm trigger
 else
-    echo "Rules file not found: dp100/$RULES_FILE"
+    echo "Rules file not found: $TEMP_DIR/dp100/$RULES_FILE"
     exit 1
 fi
 
