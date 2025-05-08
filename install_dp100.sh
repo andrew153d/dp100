@@ -9,6 +9,11 @@ REPO_URL="https://github.com/andrew153d/dp100.git"  # Replace with the actual re
 BUILD_DIR="build"
 INSTALL_DIR="/usr/local/bin"
 
+# Step 2: Clone the repository
+TEMP_DIR=$(mktemp -d)
+echo "Cloning the repository into $TEMP_DIR..."
+git clone $REPO_URL $TEMP_DIR
+
 # Step 1: Install the rules file
 if [ -f "dp100/$RULES_FILE" ]; then
     echo "Installing udev rules..."
@@ -20,10 +25,7 @@ else
     exit 1
 fi
 
-# Step 2: Clone the repository
-TEMP_DIR=$(mktemp -d)
-echo "Cloning the repository into $TEMP_DIR..."
-git clone $REPO_URL $TEMP_DIR
+
 
 # Step 3: Build the project
 cd $TEMP_DIR/dp100

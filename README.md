@@ -16,7 +16,7 @@ To install the DP100 Control Project, follow these steps:
 1. Download the installation script using `wget`:
 
    ```bash
-   wget https://raw.githubusercontent.com/andrew153d/dp100/main/install_dp100.sh
+   wget https://raw.githubusercontent.com/andrew153d/dp100/master/install_dp100.sh
    ```
 
 2. Make the script executable:
