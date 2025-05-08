@@ -1,3 +1,0 @@
-/home/andrew/Documents/dp100/dp100-control/build/CMakeFiles/dp100-control.dir
-/home/andrew/Documents/dp100/dp100-control/build/CMakeFiles/edit_cache.dir
-/home/andrew/Documents/dp100/dp100-control/build/CMakeFiles/rebuild_cache.dir
