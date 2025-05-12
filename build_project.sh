@@ -6,6 +6,9 @@ set -e
 # Navigate to the project directory
 cd "$(dirname "$0")"
 
+# Remove the build directory if it exists
+rm -rf build
+
 # Create the build directory if it doesn't exist
 if [ ! -d "build" ]; then
     mkdir build
@@ -19,6 +22,9 @@ cmake ..
 
 # Build the project using make
 make
+
+# Install the built project
+sudo make install
 
 # Notify the user of successful build
 echo "Build completed successfully."

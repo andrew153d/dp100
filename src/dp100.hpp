@@ -4,6 +4,8 @@
 #include <string>
 #include "hidapi/hidapi.h"
 #include <vector>
+#include <fstream>
+#include <stdexcept>
 
 #define VID 0x2e3c
 #define PID 0xaf01
@@ -21,7 +23,8 @@
 #define SET_MODIFY 0x20
 #define SET_ACT 0x80
 
-class DP100 {
+class DP100
+{
 public:
     DP100();
     ~DP100();
@@ -33,22 +36,31 @@ public:
     void enable();
     void disable();
     void getStatus();
-    void checkFrame(const std::vector<uint8_t>& data);
+    void checkFrame(const std::vector<uint8_t> &data);
+
+    double getOutputVoltage() const;
+    double getOutputCurrent() const;
+
+    bool readBasicInfo();
+    bool readBasicSet();
+    bool readDeviceInfo();
 
 private:
-    hid_device* device; // HID device handle
+    hid_device *device; // HID device handle
     double currentVoltage;
     double currentCurrent;
     bool isEnabled;
 
+    const std::string settingsFile = "dp100_settings.txt";
+
+    void saveSettings();
+    void loadSettings();
+
     std::vector<uint8_t> generateFrame(uint8_t opCode, std::vector<uint8_t> data = {});
-    std::vector<uint8_t> generateSet(bool output=false, uint16_t voltage_set =0, uint16_t current_set=0, uint16_t overvoltage = 30500, uint16_t overcurrent = 30500);
-    void sendCommand(uint8_t* command, size_t length);
-    void readResponse();
-    uint16_t crc16(uint8_t* data, size_t length);
+    std::vector<uint8_t> generateSet(bool output = false, uint16_t voltage_set = 0, uint16_t current_set = 0, uint16_t overvoltage = 30500, uint16_t overcurrent = 30500);
+
+    uint16_t crc16(uint8_t *data, size_t length);
     void readStatus();
-
-
 
     // Variables to hold data read in checkFrame
     uint16_t vin, vout, iout, vo_max, temp1, temp2, dc_5v;

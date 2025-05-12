@@ -3,12 +3,12 @@
 #include <hidapi/hidapi.h>
 #include <cstring>
 #include <thread>
+#include <fstream>
+#include <sstream>
 
-DP100::DP100() : device(nullptr)
+DP100::DP100() : device(nullptr), currentVoltage(0.0), currentCurrent(0.0), isEnabled(false)
 {
-    currentCurrent = 0;
-    currentVoltage = 0;
-    isEnabled = false;
+    loadSettings();
 }
 
 DP100::~DP100()
@@ -19,9 +19,8 @@ DP100::~DP100()
 bool DP100::connect()
 {
     device = hid_open(VID, PID, nullptr);
-    if(device)
+    if (device)
     {
-        //getStatus();
     }
     return device != nullptr;
 }
@@ -38,15 +37,19 @@ void DP100::disconnect()
 void DP100::setVoltage(double voltage)
 {
     currentVoltage = voltage * 1000; // Convert to mV
+    printf("Setting voltage to %f V\n", currentVoltage / 1000);
     auto command = generateFrame(OP_BASICSET, generateSet(isEnabled, currentVoltage, currentCurrent));
     hid_write(device, command.data(), command.size());
+    saveSettings();
 }
 
 void DP100::setCurrent(double current)
 {
     currentCurrent = current * 1000; // Convert to mA
+    printf("Setting current to %f A\n", currentCurrent / 1000);
     auto command = generateFrame(OP_BASICSET, generateSet(isEnabled, currentVoltage, currentCurrent));
     hid_write(device, command.data(), command.size());
+    saveSettings();
 }
 
 void DP100::enable()
@@ -65,63 +68,82 @@ void DP100::disable()
 
 void DP100::readStatus()
 {
-    int status_read = 0;
-    auto msg = generateFrame(OP_DEVICEINFO);
-    hid_write(device, msg.data(), msg.size());
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    std::vector<uint8_t> response(64);
-    int res = hid_read(device, response.data(), response.size());
-    if (res > 0)
     {
-        status_read ++;
-        checkFrame(response);
+        int status_read = 0;
+        auto msg = generateFrame(OP_DEVICEINFO);
+        std::vector<uint8_t> response(64);
+        hid_write(device, msg.data(), msg.size());
+        int res = hid_read(device, response.data(), response.size());
+        if (res > 0)
+        {
+            checkFrame(response);
+        }
     }
-    else
+    // wait 100ms
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     {
-        std::cerr << "Failed to read response from device." << std::endl;
-        exit(0);
+        int status_read = 0;
+        auto msg = generateFrame(OP_BASICINFO);
+        std::vector<uint8_t> response(64);
+        hid_write(device, msg.data(), msg.size());
+        int res = hid_read(device, response.data(), response.size());
+        if (res > 0)
+        {
+            checkFrame(response);
+        }
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    msg = generateFrame(OP_BASICINFO);
-    hid_write(device, msg.data(), msg.size());
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    res = hid_read(device, response.data(), response.size());
-    if (res > 0)
+    // wait 100ms
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     {
-        status_read++;
-        checkFrame(response);
-    }
-    else
-    {
-        std::cerr << "Failed to read response from device." << std::endl;
-        exit(0);
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    msg = generateFrame(OP_BASICSET, std::vector<uint8_t>{SET_ACT});
-    hid_write(device, msg.data(), msg.size());
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    res = hid_read(device, response.data(), response.size());
-    if (res > 0)
-    {
-        status_read++;
-        checkFrame(response);
-    }
-    else
-    {
-        std::cerr << "Failed to read response from device." << std::endl;
-        exit(0);
-    }
-
-    if(status_read!=3)
-    {
-        printf("Failed to read status");
-        exit(0);
+        int status_read = 0;
+        auto msg = generateFrame(OP_BASICSET, std::vector<uint8_t>{SET_ACT});
+        std::vector<uint8_t> response(64);
+        hid_write(device, msg.data(), msg.size());
+        int res = hid_read(device, response.data(), response.size());
+        if (res > 0)
+        {
+            checkFrame(response);
+        }
     }
 }
 
 void DP100::getStatus()
 {
-    readStatus();
+    
+    int tries = 0;
+    while(readBasicInfo() == false && tries < 3)
+    {
+        tries++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    if (tries == 3)
+    {
+        printf("Failed to read basic info after 3 attempts.\n");
+        return;
+    }
+    tries = 0;
+    while(readBasicSet() == false && tries < 3)
+    {
+        tries++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    if (tries == 3)
+    {
+        printf("Failed to read basic set after 3 attempts.\n");
+        return;
+    }
+    tries = 0;
+    while(readDeviceInfo() == false && tries < 3)
+    {
+        tries++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    if (tries == 3)
+    {
+        printf("Failed to read device info after 3 attempts.\n");
+        return;
+    }
+
     printf("Vin: %u\n", vin);
     printf("Vout: %u\n", vout);
     printf("Iout: %u\n", iout);
@@ -149,6 +171,7 @@ void DP100::getStatus()
     printf("Voltage Level: %u\n", vol_lev);
     printf("Index: %u\n", index);
     printf("State: %u\n", state);
+
     printf("Voltage Set: %u\n", vo_set);
     printf("Current Set: %u\n", io_set);
     printf("Overvoltage Set: %u\n", ovp_set);
@@ -187,33 +210,6 @@ std::vector<uint8_t> DP100::generateSet(bool output, uint16_t voltage_set, uint1
     return setData;
 }
 
-void DP100::sendCommand(uint8_t *command, size_t length)
-{
-    if (device)
-    {
-        printf("Sending command: ");
-        for (size_t i = 0; i < length; i++)
-        {
-            printf("%02X ", command[i]);
-        }
-        printf("\n");
-        hid_write(device, command, length);
-    }
-    else
-    {
-        std::cerr << "Device not connected.\n";
-    }
-}
-
-void DP100::readResponse()
-{
-    uint8_t response[64];
-    int res = hid_read(device, response, sizeof(response));
-    if (res > 0)
-    {
-        // Process response
-    }
-}
 
 void DP100::checkFrame(const std::vector<uint8_t> &data)
 {
@@ -224,10 +220,6 @@ void DP100::checkFrame(const std::vector<uint8_t> &data)
         if (crc16(const_cast<uint8_t *>(data.data()), 4 + data_len + 2) == 0)
         { // correct if return 0
             std::vector<uint8_t> raw_data(data.begin() + 4, data.begin() + 4 + data_len);
-            // for (size_t i = 0; i < data.size(); ++i) {
-            //     printf("%02X ", data[i]);
-            // }
-            // printf("\n");
             if (op == OP_BASICINFO)
             {
                 vin = (raw_data[1] << 8) | raw_data[0];
@@ -263,13 +255,29 @@ void DP100::checkFrame(const std::vector<uint8_t> &data)
             {
                 index = raw_data[0];
                 state = raw_data[1];
-                isEnabled = (state == 1);
                 vo_set = (raw_data[3] << 8) | raw_data[2];
-                currentVoltage = vo_set;
                 io_set = (raw_data[5] << 8) | raw_data[4];
-                currentCurrent = io_set;
                 ovp_set = (raw_data[7] << 8) | raw_data[6];
                 ocp_set = (raw_data[9] << 8) | raw_data[8];
+                isEnabled = (state == 1);
+                currentVoltage = vo_set;
+                currentCurrent = io_set;
+
+                if (state > 2)
+                {
+                    printf("Error reading state\n");
+                    exit(0);
+                }
+                if (vo_set > 30500)
+                {
+                    printf("Error reading voltage set\n");
+                    exit(0);
+                }
+                if (io_set > 5050)
+                {
+                    printf("Error reading current set\n");
+                    exit(0);
+                }
             }
             else
             {
@@ -281,6 +289,63 @@ void DP100::checkFrame(const std::vector<uint8_t> &data)
             std::cerr << "CRC ERROR" << std::endl;
         }
     }
+}
+
+bool DP100::readBasicInfo()
+{
+
+    int status_read = 0;
+    auto msg = generateFrame(OP_BASICINFO);
+    std::vector<uint8_t> response(64);
+    hid_write(device, msg.data(), msg.size());
+    int res = hid_read(device, response.data(), response.size());
+    if (res > 0)
+    {
+        checkFrame(response);
+        return true;
+    }
+    return false;
+}
+bool DP100::readBasicSet()
+{
+    // Implementation to read the basic settings from the device
+    int status_read = 0;
+    auto msg = generateFrame(OP_BASICSET, std::vector<uint8_t>{SET_ACT});
+    std::vector<uint8_t> response(64);
+    hid_write(device, msg.data(), msg.size());
+    int res = hid_read(device, response.data(), response.size());
+    if (res > 0)
+    {
+        checkFrame(response);
+        if (state > 2)
+        {
+            return false;
+        }
+        if (vo_set > 30500)
+        {
+            return false;
+        }
+        if (io_set > 5050)
+        {
+            return false;
+        }
+        return true;
+    }
+    return false;
+}
+bool DP100::readDeviceInfo()
+{
+    int status_read = 0;
+    auto msg = generateFrame(OP_DEVICEINFO);
+    std::vector<uint8_t> response(64);
+    hid_write(device, msg.data(), msg.size());
+    int res = hid_read(device, response.data(), response.size());
+    if (res > 0)
+    {
+        checkFrame(response);
+        return true;
+    }
+    return false;
 }
 
 uint16_t DP100::crc16(uint8_t *data, size_t length)
@@ -302,4 +367,41 @@ uint16_t DP100::crc16(uint8_t *data, size_t length)
         }
     }
     return crc;
+}
+
+void DP100::saveSettings()
+{
+    std::ofstream file(settingsFile);
+    if (!file.is_open())
+    {
+        throw std::runtime_error("Failed to open settings file for writing.");
+    }
+    file << currentVoltage << " " << currentCurrent;
+    file.close();
+}
+
+void DP100::loadSettings()
+{
+    std::ifstream file(settingsFile);
+    if (!file.is_open())
+    {
+        // If the file doesn't exist, use default values
+        currentVoltage = 0.0;
+        currentCurrent = 0.0;
+        return;
+    }
+    file >> currentVoltage >> currentCurrent;
+    file.close();
+}
+
+double DP100::getOutputVoltage() const
+{
+    // Implementation to read the current voltage from the device
+    return vout/1000.0f;
+}
+
+double DP100::getOutputCurrent() const
+{
+    // Implementation to read the current current (amps) from the device
+    return iout/1000.0f;
 }
