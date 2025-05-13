@@ -34,7 +34,14 @@ else
     exit 1
 fi
 
-# Step 3: Build the project
+# Step 3: create the settings directory
+SETTINGS_DIR="$HOME/.dp100/"
+if [ ! -d "$SETTINGS_DIR" ]; then
+    echo "Creating settings directory..."
+    mkdir -p $SETTINGS_DIR
+fi
+
+# Step 4: Build the project
 cd $TEMP_DIR/dp100
 if [ -d "$BUILD_DIR" ]; then
     rm -rf $BUILD_DIR
@@ -44,10 +51,10 @@ cd $BUILD_DIR
 cmake ..
 make
 
-# Step 4: Install the project
+# Step 5: Install the project
 sudo make install
 
-# Step 5: Clean up
+# Step 6: Clean up
 cd ~
 echo "Removing temporary files..."
 rm -rf $TEMP_DIR
