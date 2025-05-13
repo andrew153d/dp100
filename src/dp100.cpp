@@ -355,6 +355,7 @@ void DP100::saveSettings()
     std::ofstream file(settingsFile);
     if (!file.is_open())
     {
+        std::cerr << "Failed to open settings file for writing: " << settingsFile << std::endl;
         throw std::runtime_error("Failed to open settings file for writing.");
     }
     file << currentVoltage << " " << currentCurrent;
@@ -366,9 +367,14 @@ void DP100::loadSettings()
     std::ifstream file(settingsFile);
     if (!file.is_open())
     {
+        std::cerr << "Settings file not found or inaccessible: " << settingsFile << std::endl;
         // If the file doesn't exist, create the directory and file with default values
         std::string directory = settingsFile.substr(0, settingsFile.find_last_of('/'));
-        std::system(("mkdir -p " + directory).c_str()); // Create the directory if it doesn't exist
+        if (std::system(("mkdir -p " + directory).c_str()) != 0)
+        {
+            std::cerr << "Failed to create directory: " << directory << std::endl;
+            throw std::runtime_error("Failed to create directory for settings file.");
+        }
 
         std::ofstream newFile(settingsFile);
         if (newFile.is_open())
@@ -378,9 +384,19 @@ void DP100::loadSettings()
             newFile << currentVoltage << " " << currentCurrent;
             newFile.close();
         }
+        else
+        {
+            std::cerr << "Failed to create settings file: " << settingsFile << std::endl;
+            throw std::runtime_error("Failed to create settings file.");
+        }
         return;
     }
     file >> currentVoltage >> currentCurrent;
+    if (file.fail())
+    {
+        std::cerr << "Failed to read settings from file: " << settingsFile << std::endl;
+        throw std::runtime_error("Failed to read settings from file.");
+    }
     file.close();
 }
 
