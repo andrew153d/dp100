@@ -37,7 +37,6 @@ void DP100::disconnect()
 void DP100::setVoltage(double voltage)
 {
     currentVoltage = voltage * 1000; // Convert to mV
-    printf("Setting voltage to %f V\n", currentVoltage / 1000);
     auto command = generateFrame(OP_BASICSET, generateSet(isEnabled, currentVoltage, currentCurrent));
     hid_write(device, command.data(), command.size());
     saveSettings();
@@ -46,7 +45,6 @@ void DP100::setVoltage(double voltage)
 void DP100::setCurrent(double current)
 {
     currentCurrent = current * 1000; // Convert to mA
-    printf("Setting current to %f A\n", currentCurrent / 1000);
     auto command = generateFrame(OP_BASICSET, generateSet(isEnabled, currentVoltage, currentCurrent));
     hid_write(device, command.data(), command.size());
     saveSettings();
@@ -109,9 +107,9 @@ void DP100::readStatus()
 
 void DP100::getStatus()
 {
-    
+
     int tries = 0;
-    while(readBasicInfo() == false && tries < 3)
+    while (readBasicInfo() == false && tries < 3)
     {
         tries++;
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -122,7 +120,7 @@ void DP100::getStatus()
         return;
     }
     tries = 0;
-    while(readBasicSet() == false && tries < 3)
+    while (readBasicSet() == false && tries < 3)
     {
         tries++;
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -133,7 +131,7 @@ void DP100::getStatus()
         return;
     }
     tries = 0;
-    while(readDeviceInfo() == false && tries < 3)
+    while (readDeviceInfo() == false && tries < 3)
     {
         tries++;
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -210,7 +208,6 @@ std::vector<uint8_t> DP100::generateSet(bool output, uint16_t voltage_set, uint1
     return setData;
 }
 
-
 void DP100::checkFrame(const std::vector<uint8_t> &data)
 {
     if (data[0] == DR_D2H)
@@ -262,22 +259,6 @@ void DP100::checkFrame(const std::vector<uint8_t> &data)
                 isEnabled = (state == 1);
                 currentVoltage = vo_set;
                 currentCurrent = io_set;
-
-                if (state > 2)
-                {
-                    printf("Error reading state\n");
-                    exit(0);
-                }
-                if (vo_set > 30500)
-                {
-                    printf("Error reading voltage set\n");
-                    exit(0);
-                }
-                if (io_set > 5050)
-                {
-                    printf("Error reading current set\n");
-                    exit(0);
-                }
             }
             else
             {
@@ -385,9 +366,18 @@ void DP100::loadSettings()
     std::ifstream file(settingsFile);
     if (!file.is_open())
     {
-        // If the file doesn't exist, use default values
-        currentVoltage = 0.0;
-        currentCurrent = 0.0;
+        // If the file doesn't exist, create the directory and file with default values
+        std::string directory = settingsFile.substr(0, settingsFile.find_last_of('/'));
+        std::system(("mkdir -p " + directory).c_str()); // Create the directory if it doesn't exist
+
+        std::ofstream newFile(settingsFile);
+        if (newFile.is_open())
+        {
+            currentVoltage = 0.0;
+            currentCurrent = 0.0;
+            newFile << currentVoltage << " " << currentCurrent;
+            newFile.close();
+        }
         return;
     }
     file >> currentVoltage >> currentCurrent;
@@ -396,12 +386,20 @@ void DP100::loadSettings()
 
 double DP100::getOutputVoltage() const
 {
-    // Implementation to read the current voltage from the device
-    return vout/1000.0f;
+    return vout / 1000.0f;
 }
 
 double DP100::getOutputCurrent() const
 {
-    // Implementation to read the current current (amps) from the device
-    return iout/1000.0f;
+    return iout / 1000.0f;
+}
+
+double DP100::getSetVoltage() const
+{
+    return vo_set / 1000.0f;
+}
+
+double DP100::getSetCurrent() const
+{
+    return io_set / 1000.0f;
 }

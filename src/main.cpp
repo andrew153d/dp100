@@ -6,12 +6,13 @@
 
 void printUsage()
 {
-    std::cout << "Usage:\n"
-              << "  dp100 --v <voltage> --a <current>  Set voltage and current\n"
-              << "  dp100 --enable                      Enable the power supply\n"
-              << "  dp100 --disable                     Disable the power supply\n"
-              << "  dp100 --status                      Retrieve the status\n";
-
+    std::cout << "Usage: dp100 [COMMAND] [ARGS]...\n";
+    std::cout << "\nCommands:\n";
+    std::cout << "  --v [voltage]            Set the voltage.\n";
+    std::cout << "  --a [current]            Set the current.\n";
+    std::cout << "  --enable [voltage] [current] Enable the power supply with specified voltage and current.\n";
+    std::cout << "  --disable                Disable the power supply.\n";
+    std::cout << "  --status                 Display the status of the power supply in real-time.\n";
     exit(0);
 }
 
@@ -38,7 +39,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            if(args.empty() || args.back().empty())
+            if (args.empty() || args.back().empty())
             {
                 std::cerr << "Error: Argument without command.\n";
                 printUsage();
@@ -73,16 +74,21 @@ int main(int argc, char *argv[])
             double current = std::stod(arg[1]);
             dp100.setCurrent(current);
         }
-        else if ((arg[0] == "--enable" || arg[0] == "--e") && arg.size() == 3)
+        else if ((arg[0] == "--enable" || arg[0] == "--e"))
         {
-            double voltage_set = std::stod(arg[1]);
-            //printf("Setting voltage to %f V\n", voltage_set);
-            double current_set = std::stod(arg[2]);
-            //printf("Setting current to %f A\n", current_set);
-            
-            dp100.setVoltage(voltage_set);
-            dp100.setCurrent(current_set);
-            dp100.enable();
+
+            if (arg.size() == 3)
+            {
+                double voltage_set = std::stod(arg[1]);
+                double current_set = std::stod(arg[2]);
+                dp100.setVoltage(voltage_set);
+                dp100.setCurrent(current_set);
+                dp100.enable();
+            }
+            else if (arg.size() == 1)
+            {
+                dp100.enable();
+            }
         }
         else if (arg[0] == "--disable" || arg[0] == "--d")
         {
@@ -90,12 +96,24 @@ int main(int argc, char *argv[])
         }
         else if (arg[0] == "--status" || arg[0] == "--s")
         {
-            while(1)
+            dp100.readBasicSet();
+            while (1)
             {
                 dp100.readBasicInfo();
-                printf("\r");
-                fflush(stdout);
-                printf("Voltage: %f V, Current: %f A", dp100.getOutputVoltage(), dp100.getOutputCurrent());
+                // Clear the console
+                std::cout << "\033[2J\033[H"; // ANSI escape codes to clear screen and move cursor to top-left
+
+                // Print the table
+                printf("┌────────────────┬─────────────────────┐\n");
+                printf("│ Set Voltage (V)│ Output Voltage (V)  │\n");
+                printf("├────────────────┼─────────────────────┤\n");
+                printf("│ %14.3f │ %19.3f │\n", dp100.getSetVoltage(), dp100.getOutputVoltage());
+                printf("├────────────────┼─────────────────────┤\n");
+                printf("│ Set Current (A)│ Output Current (A)  │\n");
+                printf("├────────────────┼─────────────────────┤\n");
+                printf("│ %14.3f │ %19.3f │\n", dp100.getSetCurrent(), dp100.getOutputCurrent());
+                printf("└────────────────┴─────────────────────┘\n");
+
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
         }

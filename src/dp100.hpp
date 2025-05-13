@@ -40,6 +40,8 @@ public:
 
     double getOutputVoltage() const;
     double getOutputCurrent() const;
+    double getSetVoltage() const;
+    double getSetCurrent() const;
 
     bool readBasicInfo();
     bool readBasicSet();
@@ -51,7 +53,7 @@ private:
     double currentCurrent;
     bool isEnabled;
 
-    const std::string settingsFile = "dp100_settings.txt";
+    const std::string settingsFile = "~/.dp100/dp100_settings.txt";
 
     void saveSettings();
     void loadSettings();

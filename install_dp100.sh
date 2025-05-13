@@ -34,8 +34,6 @@ else
     exit 1
 fi
 
-
-
 # Step 3: Build the project
 cd $TEMP_DIR/dp100
 if [ -d "$BUILD_DIR" ]; then
