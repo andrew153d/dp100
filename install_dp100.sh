@@ -41,6 +41,8 @@ if [ ! -d "$SETTINGS_DIR" ]; then
     mkdir -p $SETTINGS_DIR
 fi
 
+touch "$SETTINGS_DIR/dp100_settings.txt"
+
 # Step 4: Build the project
 cd $TEMP_DIR/dp100
 if [ -d "$BUILD_DIR" ]; then
