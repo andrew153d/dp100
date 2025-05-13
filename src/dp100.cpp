@@ -8,7 +8,7 @@
 
 DP100::DP100() : device(nullptr), currentVoltage(0.0), currentCurrent(0.0), isEnabled(false)
 {
-    loadSettings();
+    
 }
 
 DP100::~DP100()
@@ -21,6 +21,9 @@ bool DP100::connect()
     device = hid_open(VID, PID, nullptr);
     if (device)
     {
+        readBasicInfo();
+    readBasicSet();
+    readDeviceInfo();
     }
     return device != nullptr;
 }
@@ -39,7 +42,7 @@ void DP100::setVoltage(double voltage)
     currentVoltage = voltage * 1000; // Convert to mV
     auto command = generateFrame(OP_BASICSET, generateSet(isEnabled, currentVoltage, currentCurrent));
     hid_write(device, command.data(), command.size());
-    saveSettings();
+    readBasicSet();
 }
 
 void DP100::setCurrent(double current)
@@ -47,7 +50,7 @@ void DP100::setCurrent(double current)
     currentCurrent = current * 1000; // Convert to mA
     auto command = generateFrame(OP_BASICSET, generateSet(isEnabled, currentVoltage, currentCurrent));
     hid_write(device, command.data(), command.size());
-    saveSettings();
+    readBasicSet();
 }
 
 void DP100::enable()
@@ -348,56 +351,6 @@ uint16_t DP100::crc16(uint8_t *data, size_t length)
         }
     }
     return crc;
-}
-
-void DP100::saveSettings()
-{
-    std::ofstream file(settingsFile);
-    if (!file.is_open())
-    {
-        std::cerr << "Failed to open settings file for writing: " << settingsFile << std::endl;
-        throw std::runtime_error("Failed to open settings file for writing.");
-    }
-    file << currentVoltage << " " << currentCurrent;
-    file.close();
-}
-
-void DP100::loadSettings()
-{
-    std::ifstream file(settingsFile);
-    if (!file.is_open())
-    {
-        std::cerr << "Settings file not found or inaccessible: " << settingsFile << std::endl;
-        // If the file doesn't exist, create the directory and file with default values
-        std::string directory = settingsFile.substr(0, settingsFile.find_last_of('/'));
-        if (std::system(("mkdir -p " + directory).c_str()) != 0)
-        {
-            std::cerr << "Failed to create directory: " << directory << std::endl;
-            throw std::runtime_error("Failed to create directory for settings file.");
-        }
-
-        std::ofstream newFile(settingsFile);
-        if (newFile.is_open())
-        {
-            currentVoltage = 0.0;
-            currentCurrent = 0.0;
-            newFile << currentVoltage << " " << currentCurrent;
-            newFile.close();
-        }
-        else
-        {
-            std::cerr << "Failed to create settings file: " << settingsFile << std::endl;
-            throw std::runtime_error("Failed to create settings file.");
-        }
-        return;
-    }
-    file >> currentVoltage >> currentCurrent;
-    if (file.fail())
-    {
-        std::cerr << "Failed to read settings from file: " << settingsFile << std::endl;
-        throw std::runtime_error("Failed to read settings from file.");
-    }
-    file.close();
 }
 
 double DP100::getOutputVoltage() const

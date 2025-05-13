@@ -53,11 +53,6 @@ private:
     double currentCurrent;
     bool isEnabled;
 
-    const std::string settingsFile = "~/.dp100/dp100_settings.txt";
-
-    void saveSettings();
-    void loadSettings();
-
     std::vector<uint8_t> generateFrame(uint8_t opCode, std::vector<uint8_t> data = {});
     std::vector<uint8_t> generateSet(bool output = false, uint16_t voltage_set = 0, uint16_t current_set = 0, uint16_t overvoltage = 30500, uint16_t overcurrent = 30500);
 
