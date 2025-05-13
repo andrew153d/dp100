@@ -8,7 +8,6 @@
 
 DP100::DP100() : device(nullptr), currentVoltage(0.0), currentCurrent(0.0), isEnabled(false)
 {
-    
 }
 
 DP100::~DP100()
@@ -22,8 +21,8 @@ bool DP100::connect()
     if (device)
     {
         readBasicInfo();
-    readBasicSet();
-    readDeviceInfo();
+        readBasicSet();
+        readDeviceInfo();
     }
     return device != nullptr;
 }
@@ -42,7 +41,6 @@ void DP100::setVoltage(double voltage)
     currentVoltage = voltage * 1000; // Convert to mV
     auto command = generateFrame(OP_BASICSET, generateSet(isEnabled, currentVoltage, currentCurrent));
     hid_write(device, command.data(), command.size());
-    readBasicSet();
 }
 
 void DP100::setCurrent(double current)
@@ -50,7 +48,6 @@ void DP100::setCurrent(double current)
     currentCurrent = current * 1000; // Convert to mA
     auto command = generateFrame(OP_BASICSET, generateSet(isEnabled, currentVoltage, currentCurrent));
     hid_write(device, command.data(), command.size());
-    readBasicSet();
 }
 
 void DP100::enable()
